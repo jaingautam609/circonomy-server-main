@@ -1,0 +1,1 @@
+ALTER TABLE farm_crops ADD column biomass_verified_kiln_operator bool default false;

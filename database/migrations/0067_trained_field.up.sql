@@ -1,0 +1,1 @@
+ALTER TABLE if exists biomass_aggregator ADD column if not exists trained bool default false

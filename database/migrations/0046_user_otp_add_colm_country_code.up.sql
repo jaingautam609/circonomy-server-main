@@ -1,0 +1,1 @@
+ALTER table user_otp ADD COLUMN country_code text;

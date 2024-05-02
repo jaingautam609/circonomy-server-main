@@ -1,0 +1,5 @@
+ALTER TABLE users ALTER COLUMN name DROP NOT NULL;
+
+
+ALTER TABLE users DROP CONSTRAINT "users_number_key";
+

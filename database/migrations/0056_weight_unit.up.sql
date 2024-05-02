@@ -1,0 +1,1 @@
+alter type weight_unit add value if not exists 'ton';

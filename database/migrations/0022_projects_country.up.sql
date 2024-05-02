@@ -1,0 +1,1 @@
+ALTER TABLE IF EXISTS projects ADD COLUMN country TEXT;

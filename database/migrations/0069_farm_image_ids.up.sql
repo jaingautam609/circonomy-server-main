@@ -1,0 +1,1 @@
+alter table farms alter column farm_images_ids drop not null;

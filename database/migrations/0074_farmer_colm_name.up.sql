@@ -1,0 +1,1 @@
+ALTER TABLE farmer_rejected RENAME COLUMN user_id TO farmer_id;

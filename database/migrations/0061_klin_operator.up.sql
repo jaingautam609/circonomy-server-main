@@ -1,0 +1,1 @@
+alter table network_operator rename to klin_operator;

@@ -1,0 +1,1 @@
+ALTER TABLE IF EXISTS projects ALTER COLUMN project_time TYPE text;

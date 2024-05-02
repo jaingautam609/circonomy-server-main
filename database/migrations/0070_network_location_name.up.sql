@@ -1,0 +1,1 @@
+ALTER TABLE if exists network add column if not exists location_name text;

@@ -1,0 +1,1 @@
+alter table enquiry add column if not exists email_type text;

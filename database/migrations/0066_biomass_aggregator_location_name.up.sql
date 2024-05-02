@@ -1,0 +1,1 @@
+ALTER TABLE biomass_aggregator ADD COLUMN location_name text;

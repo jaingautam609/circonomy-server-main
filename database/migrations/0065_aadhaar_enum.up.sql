@@ -1,0 +1,1 @@
+ALTER TYPE upload_type ADD VALUE 'aadhaar'

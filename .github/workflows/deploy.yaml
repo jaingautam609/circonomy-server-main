@@ -1,0 +1,89 @@
+# Author: Ronal Raj
+name: Deploy dev,stage and prod environment of circonomy-server
+on: 
+  push:
+    branches:
+      - dev
+      - stage
+      - main
+
+
+jobs:
+  build-docker-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Set branch environments
+        run: |-
+          if [[ "${{github.base_ref}}" == "dev" || "${{github.ref}}" == "refs/heads/dev" ]]; then
+             echo "CONTAINER_NAME=circonomy-server-dev-docker" >> "$GITHUB_ENV"
+             echo "ECS_SERVICE=circonomy-server-dev-service" >> "$GITHUB_ENV"
+             echo "ECS_CLUSTER=circonomy-server-dev-cluster" >> "$GITHUB_ENV"
+             echo "AWS_REGION=ap-south-1" >> "$GITHUB_ENV"
+             echo "ECS_TASK_DEFINITION=circonomy-server-dev-task" >> "$GITHUB_ENV"
+             echo "AWS_ACCESS_KEY_SECRET=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> "$GITHUB_ENV"
+             echo "AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID }}" >> "$GITHUB_ENV"
+             
+          fi
+          if [[ "${{github.base_ref}}" == "stage" || "${{github.ref}}" == "refs/heads/stage" ]]; then
+             echo "CONTAINER_NAME=circonomy-server-stage-docker" >> "$GITHUB_ENV"
+             echo "ECS_SERVICE=circonomy-server-stage-service" >> "$GITHUB_ENV"
+             echo "ECS_CLUSTER=circonomy-server-stage-cluster" >> "$GITHUB_ENV"
+             echo "AWS_REGION=ap-south-1" >> "$GITHUB_ENV"
+             echo "ECS_TASK_DEFINITION=circonomy-server-stage-task" >> "$GITHUB_ENV"
+             echo "AWS_ACCESS_KEY_SECRET=${{ secrets.AWS_SECRET_ACCESS_KEY_STAGE }}" >> "$GITHUB_ENV"
+             echo "AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID_STAGE }}" >> "$GITHUB_ENV"
+          fi
+          if [[ "${{github.base_ref}}" == "main" || "${{github.ref}}" == "refs/heads/main" ]]; then  
+             echo "CONTAINER_NAME=circonomy-server-prod-docker" >> "$GITHUB_ENV"
+             echo "ECS_SERVICE=circonomy-server-prod-service" >> "$GITHUB_ENV"
+             echo "ECS_CLUSTER=circonomy-server-prod-cluster" >> "$GITHUB_ENV"
+             echo "AWS_REGION=ap-south-1" >> "$GITHUB_ENV"
+             echo "ECS_TASK_DEFINITION=circonomy-server-prod-task" >> "$GITHUB_ENV"
+             echo "AWS_ACCESS_KEY_SECRET=${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}" >> "$GITHUB_ENV"
+             echo "AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID_PROD }}" >> "$GITHUB_ENV"
+          fi
+      - name: checkout repo
+        uses: actions/checkout@v2
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ env.AWS_ACCESS_KEY_SECRET }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.CONTAINER_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+      - name: download task definition
+        run: |
+            aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query taskDefinition > task-definition.json
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
